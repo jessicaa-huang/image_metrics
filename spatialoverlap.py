@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import cv2
+import shutil
 import matplotlib.pyplot as plt
 
 def compute_spatial_overlap(image1, image2):
@@ -25,6 +26,39 @@ def spatial_overlap(folder_path, ref_image):
         result.append(compute_spatial_overlap(ref_image, img))
     return result
 
+def filter_images_by_spatial_overlap(satellite_image_path, drone_images_folder, output_folder, threshold=0.65):
+    # Load the satellite image
+    satellite_image = cv2.imread(satellite_image_path, cv2.IMREAD_GRAYSCALE)
+    if satellite_image is None:
+        raise ValueError(f"Satellite image at {satellite_image_path} could not be loaded.")
+
+    # Ensure the output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+    countUsed = 0
+    totalCount = 0
+
+    for img_name in os.listdir(drone_images_folder):
+        img_path = os.path.join(drone_images_folder, img_name)
+        drone_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+
+        if drone_image is None:
+            print(f"Skipping {img_name}: Unable to load image.")
+            continue
+
+        # Calculate spatial overlap
+        overlap = compute_spatial_overlap(satellite_image, drone_image)
+        
+        if overlap > threshold:
+            # Copy image to the output folder if it passes the threshold
+            output_path = os.path.join(output_folder, img_name)
+            shutil.copy(img_path, output_path)
+            countUsed += 1
+            print(f"Copied {img_name} to {output_folder}: Overlap = {overlap:.2f}")
+        else:
+            print(f"Skipped {img_name}: Overlap = {overlap:.2f}")
+        totalCount += 1
+
+    print(f"Used {countUsed} images out of {totalCount}")
 def compute_feature_density(image): 
     orb = cv2.ORB_create() 
     keypoints = orb.detect(image, None) 
